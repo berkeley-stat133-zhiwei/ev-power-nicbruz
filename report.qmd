@@ -1,6 +1,7 @@
 ---
 title: "EV Power - Lab 4 Project Report"
 format: typst
+#NICOLAS BRUZZESE
 ---
 
 # Example Solution 1
@@ -8,27 +9,128 @@ format: typst
 ## **Part 0: libraries**
 
 ```{r}
-
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(readr)
+library(maps)
+library(janitor)
+library(ggplot2)
 ```
 
 ## **Part 1:** **Defining Research Question**
 
-Chosen Question:
+Chosen Question: What causes renewable energy amounts to change overtime? Is there a correlation with renewable energy usage and the price of electricity? What areas of the country show the most venture in renewable energy, and why?
 
 ## **Part 2: Data Preparation and Cleaning**
 
 ```{r}
+renew21 <- read.csv("data/renew-use-2021.csv")
+renew22 <- read.csv("data/renew-use-2022.csv")
+renew23 <- read.csv("data/renew-use-2023.csv")
 
+total21 <- read.csv("data/total-use-2021.csv")
+total22 <- read.csv("data/total-use-2022.csv")
+total23 <- read.csv("data/total-use-2023.csv")
+
+price   <- read.csv("data/av-energy-price-2021-2023.csv")
+ev2023  <- read.csv("data/ev-registrations-by-state-2023.csv")
+
+renew21 <- clean_names(renew21)
+renew22 <- clean_names(renew22)
+renew23 <- clean_names(renew23)
+total21 <- clean_names(total21)
+total22 <- clean_names(total22)
+total23 <- clean_names(total23)
+price   <- clean_names(price)
+ev2023  <- clean_names(ev2023)
+
+renew21 <- renew21 |> mutate(state = str_to_title(str_trim(state)))
+renew22 <- renew22 |> mutate(state = str_to_title(str_trim(state)))
+renew23 <- renew23 |> mutate(state = str_to_title(str_trim(state)))
+
+total21 <- total21 |>
+  pivot_longer(cols = -energy_source, names_to = "state_abbr", values_to = "total_use_2021") |>
+  mutate(state_abbr = str_to_upper(state_abbr))
+
+total22 <- total22 |>
+  pivot_longer(cols = -energy_source, names_to = "state_abbr", values_to = "total_use_2022") |>
+  mutate(state_abbr = str_to_upper(state_abbr))
+
+total23 <- total23 |>
+  pivot_longer(cols = -energy_source, names_to = "state_abbr", values_to = "total_use_2023") |>
+  mutate(state_abbr = str_to_upper(state_abbr))
+
+ev2023 <- ev2023 |>
+  rename(state = x,
+         ev_registrations = electric_vehicle_registrations_by_state_2023) |>
+  mutate(state = str_to_title(str_trim(state)))
 ```
 
 ## **Part 3: Joining / Pivoting Datasets for Analysis**
 
 ```{r}
 
+renew_all <- bind_rows(
+  renew21 |> mutate(year = 2021),
+  renew22 |> mutate(year = 2022),
+  renew23 |> mutate(year = 2023)
+)
+
+total_all <- bind_rows(
+  total21 |> mutate(year = 2021),
+  total22 |> mutate(year = 2022),
+  total23 |> mutate(year = 2023)
+)
+
+state_ref <- tibble(
+  state = state.name,
+  state_abbr = state.abb
+)
+
+total_all <- total_all |>
+  left_join(state_ref, by = "state_abbr") |>
+  relocate(state)
+
+energy_all <- renew_all |>
+  inner_join(total_all, by = c("state", "year")) |>
+  mutate(
+    renewable_use_2021 = as.numeric(renewable_use_2021),
+    total_use_2021 = as.numeric(total_use_2021),
+    renewable_share = renewable_use_2021 / total_use_2021
+  )
+
+energy_ev_2023 <- energy_all |>
+  filter(year == 2023) |>
+  left_join(ev2023, by = "state") |>
+  mutate(
+    ev_registrations = as.numeric(gsub(",", "", ev_registrations)),
+    total_use_2023   = as.numeric(gsub(",", "", total_use_2023)),
+    ev_per_energy    = ev_registrations / total_use_2023
+  )
+
+#Mainly wanted to see any correlation with states using cleaner energy and their amount of eletric vehicles. This combined renewable energy use (all years 2021-2023), total energy use, avergy energy price, and just 2023 ev registrations. Inner join and left join were the main methods I used. 
 ```
 
 ## **Part 4: Mapping Visualization**
 
 ```{r}
+us_states <- map_data("state")
+
+energy_ev_2023 <- energy_ev_2023 |>
+  mutate(region = tolower(state))
+
+map_data_joined <- us_states |>
+  left_join(energy_ev_2023, by = "region")
+
+ggplot(map_data_joined, aes(long, lat, group = group, fill = renewable_share)) +
+  geom_polygon(color = "white") +
+  coord_fixed(1.3) +
+  scale_fill_viridis_c(option = "plasma", na.value = "grey90") +
+  labs(
+    title = "Share of Renewable Energy by State (2023)",
+    fill = "Renewable Share"
+  ) +
+  theme_minimal()
 
 ```
