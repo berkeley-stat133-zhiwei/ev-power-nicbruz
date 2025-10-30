@@ -134,3 +134,13 @@ ggplot(map_data_joined, aes(long, lat, group = group, fill = renewable_share)) +
   theme_minimal()
 
 ```
+
+## **PART 5 Anaylsis**
+
+The aim of this report was tolook at renewable energy, and it's usage shift from 2021 to 2023. Connecting it to see if there is any correlation with electric vehicles. When the data was organized, I looked at two things primarily. Renewable Share, and EV per Energy. 
+
+The map created shows that the west coast contain the most amount of renewable energy shares. With south-east states being some of the least amount. High renewable states also generally had high EV registrations, showing at least some form of relationship.
+
+The data in total clearly shows that different regions demonstrate big differences in their renewable energy usage and EV registrations. 
+
+(Also sorry I could not turn part 5 into a pdf despite the amount of help I looked for)
